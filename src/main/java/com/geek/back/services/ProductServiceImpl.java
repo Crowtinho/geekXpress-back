@@ -66,8 +66,6 @@ public class ProductServiceImpl implements ProductService{
         return productRepository.save(product);
     }
 
-
-
     @Transactional
     @Override
     public Product removeImageFromProduct(Long productId, Long imageId) {
@@ -80,7 +78,6 @@ public class ProductServiceImpl implements ProductService{
         product.removeImage(image);
         return productRepository.save(product);
     }
-
 
     @Override
     public List<Product> findByCategoryName(String categoryName) {

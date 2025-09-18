@@ -82,4 +82,10 @@ public class ProductController {
     public ResponseEntity<List<Product>> listByCategory(@PathVariable String name) {
         return ResponseEntity.ok(productService.findByCategoryName(name));
     }
+
+    @GetMapping("/category/{categoryName}")
+    public ResponseEntity<List<Product>> findByCategory(@PathVariable String categoryName) {
+        return ResponseEntity.ok(productService.findByCategoryName(categoryName));
+    }
+
 }
