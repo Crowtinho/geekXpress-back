@@ -17,6 +17,7 @@ public class ProductServiceImpl implements ProductService{
 
     final private ProductRepository productRepository;
     final private ProductImageRepository productImageRepository;
+//    final private
 
     public ProductServiceImpl(ProductRepository productRepository, ProductImageRepository productImageRepository) {
         this.productRepository = productRepository;
