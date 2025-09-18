@@ -1,6 +1,6 @@
 package com.geek.back.controllers;
 
-import com.geek.back.models.Category;
+import com.geek.back.dto.ProductDTO;
 import com.geek.back.models.Product;
 import com.geek.back.models.ProductImage;
 import com.geek.back.services.CategoryServiceImpl;
@@ -11,8 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/products")
@@ -28,13 +27,13 @@ public class ProductController {
 
     // Listar todos los productos
     @GetMapping
-    public ResponseEntity<List<Product>> list() {
+    public ResponseEntity<List<ProductDTO>> list() {
         return ResponseEntity.ok(productService.findAll());
     }
 
     // Obtener un producto por ID
     @GetMapping("/{id}")
-    public ResponseEntity<Product> details(@PathVariable Long id) {
+    public ResponseEntity<ProductDTO> details(@PathVariable Long id) {
         return productService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -42,37 +41,20 @@ public class ProductController {
 
     // Crear un producto
     @PostMapping
-    public ResponseEntity<Product> create(@Valid @RequestBody Product product) {
-        Set<Category> categories = product.getCategories().stream()
-                .map(c -> categoryService.findByIdOrThrow(c.getId()))
-                .collect(Collectors.toSet());
-        product.setCategories(categories);
-
-        Product savedProduct = productService.save(product);
+    public ResponseEntity<ProductDTO> create(@Valid @RequestBody ProductDTO dto) {
+        ProductDTO savedProduct = productService.save(dto);  // 👈 delega al servicio
         return ResponseEntity.status(HttpStatus.CREATED).body(savedProduct);
     }
 
     // Actualizar un producto (sin sobrescribir imágenes)
     @PutMapping("/{id}")
-    public ResponseEntity<Product> update(@PathVariable Long id, @Valid @RequestBody Product product) {
-        return productService.findById(id)
-                .map(productDb -> {
-                    productDb.setName(product.getName());
-                    productDb.setDescription(product.getDescription());
-                    productDb.setPrice(product.getPrice());
-                    productDb.setStock(product.getStock());
-
-                    // Actualizar categorías
-                    Set<Category> categories = product.getCategories().stream()
-                            .map(c -> categoryService.findByIdOrThrow(c.getId()))
-                            .collect(Collectors.toSet());
-                    productDb.setCategories(categories);
-
-                    Product updatedProduct = productService.save(productDb);
-                    return ResponseEntity.ok(updatedProduct);
-                })
+    public ResponseEntity<ProductDTO> update(@PathVariable Long id, @Valid @RequestBody ProductDTO dto) {
+        return productService.saveOrUpdate(dto, id)
+                .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
+
+
 
     // Eliminar un producto
     @DeleteMapping("/{id}")

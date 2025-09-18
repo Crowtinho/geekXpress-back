@@ -1,11 +1,9 @@
 package com.geek.back.controllers;
 
-import com.geek.back.dto.UserDto;
+import com.geek.back.dto.UserDTO;
 import com.geek.back.jwt.JwtUtil;
 import com.geek.back.models.User;
-import com.geek.back.services.UserService;
 import com.geek.back.services.UserServiceImpl;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -61,7 +59,7 @@ public class UserController {
 
 
     @PostMapping("/login")
-    public ResponseEntity<String> loginConDTO(@RequestBody UserDto userDto) {
+    public ResponseEntity<String> loginConDTO(@RequestBody UserDTO userDto) {
         UserDetails userDetails = userService.loadUserByUsername(userDto.getUsername());
         if (userDetails != null && passwordEncoder.matches(userDto.getPassword(), userDetails.getPassword())) {
             String token = jwtUtil.generateToken(userDetails.getUsername());

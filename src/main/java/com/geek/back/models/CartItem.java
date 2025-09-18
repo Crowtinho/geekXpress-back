@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
 //@Table(name = "carrito_detalles")
 @Getter
@@ -32,5 +34,5 @@ public class CartItem {
     private Integer quantity;
 
     @Column(nullable = false)
-    private Double UnitPrice;
+    private BigDecimal unitPrice;
 }
