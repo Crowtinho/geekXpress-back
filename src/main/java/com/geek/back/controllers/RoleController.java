@@ -35,14 +35,14 @@ public class RoleController {
         return ResponseEntity.status(201).body(saved);
     }
 
-    @PutMapping("edit/{id}")
+    @PutMapping("/edit/{id}")
     public ResponseEntity<Role> update(@RequestBody Role role, @PathVariable Long id) {
         role.setId(id);
         Role saved = roleService.save(role);
         return ResponseEntity.ok(saved);
     }
 
-    @DeleteMapping("delete/{id}")
+    @DeleteMapping("/delete/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         roleService.deleteById(id);
         return ResponseEntity.noContent().build();

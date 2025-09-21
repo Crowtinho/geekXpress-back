@@ -1,7 +1,9 @@
 package com.geek.back.controllers;
 
+import com.geek.back.dto.ShoppingCartDTO;
 import com.geek.back.models.ShoppingCart;
 import com.geek.back.services.ShoppingCartService;
+import com.geek.back.services.ShoppingCartServiceImpl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,39 +13,39 @@ import java.util.List;
 @RequestMapping("/cart")
 public class ShoppingCartController {
 
-    private final ShoppingCartService shoppingCartService;
+    private final ShoppingCartServiceImpl shoppingCartService;
 
-    public ShoppingCartController(ShoppingCartService shoppingCartService) {
+    public ShoppingCartController(ShoppingCartServiceImpl shoppingCartService) {
         this.shoppingCartService = shoppingCartService;
     }
 
     @GetMapping
-    public ResponseEntity<List<ShoppingCart>> list() {
+    public ResponseEntity<List<ShoppingCartDTO>> list() {
         return ResponseEntity.ok(shoppingCartService.findAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ShoppingCart> details(@PathVariable Long id) {
+    public ResponseEntity<ShoppingCartDTO> details(@PathVariable Long id) {
         return shoppingCartService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/user/{usuarioId}")
-    public ResponseEntity<List<ShoppingCart>> listByUsuario(@PathVariable Long usuarioId) {
+    public ResponseEntity<List<ShoppingCartDTO>> listByUsuario(@PathVariable Long usuarioId) {
         return ResponseEntity.ok(shoppingCartService.findByUsuarioId(usuarioId));
     }
 
     @PostMapping("/create")
-    public ResponseEntity<ShoppingCart> create(@RequestBody ShoppingCart shoppingCart) {
-        ShoppingCart saved = shoppingCartService.save(shoppingCart);
+    public ResponseEntity<ShoppingCartDTO> create(@RequestBody ShoppingCartDTO shoppingCart) {
+        ShoppingCartDTO saved = shoppingCartService.save(shoppingCart);
         return ResponseEntity.status(201).body(saved);
     }
 
     @PutMapping("/edit/{id}")
-    public ResponseEntity<ShoppingCart> update(@PathVariable Long id, @RequestBody ShoppingCart shoppingCart) {
-        shoppingCart.setId(id);
-        ShoppingCart saved = shoppingCartService.save(shoppingCart);
+    public ResponseEntity<ShoppingCartDTO> update(@PathVariable Long id, @RequestBody ShoppingCartDTO shoppingCart) {
+        shoppingCart.setUserId(id);
+        ShoppingCartDTO saved = shoppingCartService.save(shoppingCart);
         return ResponseEntity.ok(saved);
     }
 

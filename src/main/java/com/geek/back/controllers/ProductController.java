@@ -1,91 +1,80 @@
 package com.geek.back.controllers;
 
+import com.geek.back.dto.ProductDTO;
 import com.geek.back.models.Product;
 import com.geek.back.models.ProductImage;
-import com.geek.back.services.ProductService;
-import jakarta.persistence.EntityNotFoundException;
+import com.geek.back.services.CategoryServiceImpl;
+import com.geek.back.services.ProductServiceImpl;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/products")
-@CrossOrigin(origins = "http://localhost:8080/products")
 public class ProductController {
 
-    private final ProductService productService;
+    private final ProductServiceImpl productService;
+    private final CategoryServiceImpl categoryService;
 
-    public ProductController(ProductService productService) {
+    public ProductController(ProductServiceImpl productService, CategoryServiceImpl categoryService) {
         this.productService = productService;
+        this.categoryService = categoryService;
     }
 
-    // ✅ Obtener todos los productos
+    // Listar todos los productos
     @GetMapping
-    public ResponseEntity<List<Product>> list() {
+    public ResponseEntity<List<ProductDTO>> list() {
         return ResponseEntity.ok(productService.findAll());
     }
 
-    // ✅ Obtener producto por id
+    // Obtener un producto por ID
     @GetMapping("/{id}")
-    public ResponseEntity<Product> getById(@PathVariable Long id) {
+    public ResponseEntity<ProductDTO> details(@PathVariable Long id) {
         return productService.findById(id)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // ✅ Crear producto
+    // Crear un producto
     @PostMapping
-    public ResponseEntity<Product> create(@RequestBody Product product) {
-        return ResponseEntity.ok(productService.save(product));
+    public ResponseEntity<ProductDTO> create(@Valid @RequestBody ProductDTO dto) {
+        ProductDTO savedProduct = productService.save(dto);  // 👈 delega al servicio
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedProduct);
     }
 
-    // ✅ Actualizar producto
+    // Actualizar un producto (sin sobrescribir imágenes)
     @PutMapping("/{id}")
-    public ResponseEntity<Product> update(@PathVariable Long id, @RequestBody Product product) {
-        return productService.findById(id).map(p -> {
-            product.setId(id);
-            return ResponseEntity.ok(productService.save(product));
-        }).orElse(ResponseEntity.notFound().build());
-    }
-
-    // ✅ Eliminar producto
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Product> delete(@PathVariable Long id) {
-        return productService.deleteById(id)
+    public ResponseEntity<ProductDTO> update(@PathVariable Long id, @Valid @RequestBody ProductDTO dto) {
+        return productService.saveOrUpdate(dto, id)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // ✅ Agregar imagen a producto
+
+
+    // Eliminar un producto
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        return productService.deleteById(id)
+                .map(p -> ResponseEntity.noContent().<Void>build())
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    // Agregar una imagen a un producto
     @PostMapping("/{id}/images")
     public ResponseEntity<Product> addImage(@PathVariable Long id, @RequestBody ProductImage image) {
-        try {
-            return ResponseEntity.ok(productService.addImageToProduct(id, image));
-        } catch (EntityNotFoundException e) {
-            return ResponseEntity.notFound().build();
-        }
+        Product updatedProduct = productService.addImageToProduct(id, image);
+        return ResponseEntity.ok(updatedProduct);
     }
 
-    // ✅ Eliminar imagen de producto
-    @DeleteMapping("/{id}/images/{imageId}")
-    public ResponseEntity<Product> removeImage(@PathVariable Long id, @PathVariable Long imageId) {
-        try {
-            return ResponseEntity.ok(productService.removeImageFromProduct(id, imageId));
-        } catch (EntityNotFoundException e) {
-            return ResponseEntity.notFound().build();
-        }
+    // Eliminar una imagen de un producto
+    @DeleteMapping("/{productId}/images/{imageId}")
+    public ResponseEntity<Product> removeImage(@PathVariable Long productId, @PathVariable Long imageId) {
+        Product updatedProduct = productService.removeImageFromProduct(productId, imageId);
+        return ResponseEntity.ok(updatedProduct);
     }
-
-    // ✅ Nuevo: Filtrar productos por categoría
-    @GetMapping("/category/{name}")
-    public ResponseEntity<List<Product>> listByCategory(@PathVariable String name) {
-        return ResponseEntity.ok(productService.findByCategoryName(name));
-    }
-
-    @GetMapping("/category/{categoryName}")
-    public ResponseEntity<List<Product>> findByCategory(@PathVariable String categoryName) {
-        return ResponseEntity.ok(productService.findByCategoryName(categoryName));
-    }
-
 }
