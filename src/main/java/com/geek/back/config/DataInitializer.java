@@ -1,6 +1,7 @@
 package com.geek.back.config;
 
 import com.geek.back.entities.Role;
+import com.geek.back.entities.ShoppingCart;
 import com.geek.back.entities.User;
 import com.geek.back.repositories.RoleRepository;
 import com.geek.back.repositories.UserRepository;
@@ -48,23 +49,36 @@ public class DataInitializer implements CommandLineRunner {
         // Crear usuario admin si no existe
         String adminEmail = "admin@geekexpress.com";
         userRepository.findByEmail(adminEmail).ifPresentOrElse(
-                user -> log.info("Usuario ADMIN ya existe: {}", adminEmail),
+                user -> {
+                    log.info("Usuario ADMIN ya existe: {}", adminEmail);
+                    if (user.getShoppingCart() == null) {
+                        ShoppingCart cart = new ShoppingCart();
+                        cart.setUser(user);
+                        user.setShoppingCart(cart);
+                        userRepository.save(user);
+                        log.info("Se asignó un carrito al usuario ADMIN existente");
+                    }
+                },
                 () -> {
                     Role adminRole = roleRepository.findByName("ROLE_ADMIN")
                             .orElseThrow(() -> new RuntimeException("ROLE_ADMIN no existe"));
 
                     User admin = new User();
                     admin.setUserName("admin");
-                    admin.setEmail("admin@geekexpress.com");
+                    admin.setEmail(adminEmail);
                     admin.setPassword(passwordEncoder.encode("admin123"));
                     admin.setRole(adminRole);
                     admin.setName("admin");
-                    admin.setLastName("admin");// 👈 aquí va directo, no un Set
-                    userRepository.save(admin);
+                    admin.setLastName("admin");
+
+                    ShoppingCart cart = new ShoppingCart();
+                    cart.setUser(admin);
+                    admin.setShoppingCart(cart);
 
                     userRepository.save(admin);
-                    log.info("Usuario ADMIN creado con email: {}", adminEmail);
+                    log.info("Usuario ADMIN creado con email: {} y carrito asignado", adminEmail);
                 }
         );
+
     }
 }
