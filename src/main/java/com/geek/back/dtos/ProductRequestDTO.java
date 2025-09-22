@@ -28,8 +28,11 @@ public class ProductRequestDTO {
     @Positive(message = "Stock must be greater or equal to 0")
     private int stock;
 
+//    @NotNull(message = "At least one category must be assigned")
+//    private Set<Long> categoryIds;
+
     @NotNull(message = "At least one category must be assigned")
-    private Set<Long> categoryIds;
+    private Set<String> categoryNames;
 
     @NotEmpty(message = "At least one image is required")
     List<ImageProductRequestDTO> images;
