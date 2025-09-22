@@ -1,118 +1,159 @@
 package com.geek.back.services;
 
-import com.geek.back.dto.CartItemDTO;
-import com.geek.back.dto.ShoppingCartDTO;
-import com.geek.back.models.CartItem;
-import com.geek.back.models.Product;
-import com.geek.back.models.ShoppingCart;
-import com.geek.back.models.User;
+import com.geek.back.dtos.CartItemDTO;
+import com.geek.back.dtos.CartItemRequestDTO;
+import com.geek.back.dtos.ShoppingCartDTO;
+import com.geek.back.entities.CartItem;
+import com.geek.back.entities.Product;
+import com.geek.back.entities.ShoppingCart;
+import com.geek.back.repositories.CartItemRepository;
 import com.geek.back.repositories.ProductRepository;
 import com.geek.back.repositories.ShoppingCartRepository;
 import com.geek.back.repositories.UserRepository;
-import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
-@Transactional
 public class ShoppingCartServiceImpl implements ShoppingCartService {
 
-    private final ShoppingCartRepository shoppingCartRepository;
-    private final UserRepository userRepository;
+    private final ShoppingCartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
 
-    public ShoppingCartServiceImpl(ShoppingCartRepository shoppingCartRepository,
-                                   UserRepository userRepository,
-                                   ProductRepository productRepository) {
-        this.shoppingCartRepository = shoppingCartRepository;
-        this.userRepository = userRepository;
+    public ShoppingCartServiceImpl(ShoppingCartRepository cartRepository,
+                                   CartItemRepository cartItemRepository,
+                                   ProductRepository productRepository,
+                                   UserRepository userRepository) {
+        this.cartRepository = cartRepository;
+        this.cartItemRepository = cartItemRepository;
         this.productRepository = productRepository;
-    }
-
-    // Convierte ShoppingCart a DTO
-    private ShoppingCartDTO toDTO(ShoppingCart cart) {
-        List<CartItemDTO> items = cart.getDetails().stream()
-                .map(item -> new CartItemDTO(
-                        item.getProduct().getId(),
-                        item.getQuantity(),
-                        item.getUnitPrice()
-                )).collect(Collectors.toList());
-
-        return new ShoppingCartDTO(cart.getUser().getId(), items);
+        this.userRepository = userRepository;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ShoppingCartDTO> findAll() {
-        return shoppingCartRepository.findAll().stream()
+    public List<CartItemDTO> getCartItems(Long userId) {
+        ShoppingCart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+
+        return cart.getItems().stream()
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
-    @Override
-    public Optional<ShoppingCartDTO> findById(Long id) {
-        return Optional.empty();
-    }
-
-    @Override
-    public ShoppingCartDTO save(ShoppingCartDTO dto) {
-        ShoppingCart cart = fromDTO(dto);
-        ShoppingCart saved = shoppingCartRepository.save(cart);
-        return toDTO(saved);
-    }
-
-    @Override
-    public Optional<ShoppingCartDTO> deleteById(Long id) {
-        return shoppingCartRepository.findById(id).map(cart -> {
-            shoppingCartRepository.delete(cart);
-            return toDTO(cart);
-        });
-    }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ShoppingCartDTO> findByUsuarioId(Long usuarioId) {
-        return shoppingCartRepository.findAll().stream()
-                .filter(cart -> cart.getUser().getId().equals(usuarioId))
-                .map(this::toDTO)
-                .collect(Collectors.toList());
+    public ShoppingCartDTO getCartByUserId(Long userId) {
+        ShoppingCart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+        return toDTO(cart);
+    }
+
+    @Override
+    @Transactional
+    public CartItemDTO addProductToCart(Long userId, CartItemRequestDTO request) {
+        // Obtener el carrito del usuario
+        ShoppingCart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+
+        // Obtener el producto
+        Product product = productRepository.findById(request.getProductId())
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        // Buscar si el producto ya está en el carrito
+        Optional<CartItem> existingItemOpt = cartItemRepository
+                .findByShoppingCartIdAndProductId(cart.getId(), product.getId());
+
+        CartItem cartItem;
+        if (existingItemOpt.isPresent()) {
+            // Si ya existe, solo aumentar la cantidad
+            cartItem = existingItemOpt.get();
+            cartItem.setQuantity(cartItem.getQuantity() + request.getQuantity());
+        } else {
+            // Si no existe, crear un nuevo CartItem
+            cartItem = new CartItem();
+            cartItem.setShoppingCart(cart);
+            cartItem.setProduct(product);
+            cartItem.setUnitPrice(product.getPrice());
+            cartItem.setQuantity(request.getQuantity());
+        }
+
+        // Guardar y devolver DTO
+        return toDTO(cartItemRepository.save(cartItem));
+    }
+
+
+    @Override
+    @Transactional
+    public CartItemDTO updateCartItem(Long userId, CartItemRequestDTO request) {
+        ShoppingCart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+
+        CartItem cartItem = cartItemRepository
+                .findByShoppingCartIdAndProductId(cart.getId(), request.getProductId())
+                .orElseThrow(() -> new RuntimeException("Product not in cart"));
+
+        if (request.getQuantity() <= 0) {
+            cartItemRepository.delete(cartItem);
+            return null;
+        }
+
+        cartItem.setQuantity(request.getQuantity());
+        return toDTO(cartItemRepository.save(cartItem));
+    }
+
+    @Override
+    @Transactional
+    public void removeProductFromCart(Long userId, Long productId) {
+        ShoppingCart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+
+        CartItem cartItem = cartItemRepository
+                .findByShoppingCartIdAndProductId(cart.getId(), productId)
+                .orElseThrow(() -> new RuntimeException("Product not in cart"));
+
+        cartItemRepository.delete(cartItem);
     }
 
     @Transactional
-    public ShoppingCart createCart(ShoppingCartDTO dto) {
-        return shoppingCartRepository.save(fromDTO(dto));
+    public void clearCart(Long userId) {
+        ShoppingCart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+        cartItemRepository.deleteAllByShoppingCartId(cart.getId());
     }
 
-    // Convierte DTO a entidad ShoppingCart
-    private ShoppingCart fromDTO(ShoppingCartDTO dto) {
-        User user = userRepository.findById(dto.getUserId())
-                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
 
-        ShoppingCart cart = new ShoppingCart();
-        cart.setUser(user);
+    private CartItemDTO toDTO(CartItem cartItem) {
+        if (cartItem == null) return null;
 
-        Set<CartItem> items = new HashSet<>();
-        for (CartItemDTO itemDTO : dto.getItems()) {
-            Product product = productRepository.findById(itemDTO.getProductId())
-                    .orElseThrow(() -> new EntityNotFoundException("Producto no encontrado"));
-
-            CartItem item = CartItem.builder()
-                    .shoppingCart(cart)
-                    .product(product)
-                    .quantity(itemDTO.getQuantity())
-                    .unitPrice(itemDTO.getUnitPrice())
-                    .build();
-
-            items.add(item);
+        String imageUrl = "";
+        if (cartItem.getProduct().getImageProducts() != null && !cartItem.getProduct().getImageProducts().isEmpty()) {
+            imageUrl = cartItem.getProduct().getImageProducts().get(0).getUrl(); // primera imagen
         }
+        return CartItemDTO.builder()
+                .productId(cartItem.getProduct().getId())
+                .productName(cartItem.getProduct().getName())
+                .quantity(cartItem.getQuantity())
+                .unitPrice(cartItem.getUnitPrice())
+                .imageUrl(imageUrl)
+                .build();
+    }
 
-        cart.setDetails(items);
-        return cart;
+    private ShoppingCartDTO toDTO(ShoppingCart cart) {
+        if (cart == null) return null;
+        List<CartItemDTO> items = cartItemRepository.findAllByShoppingCartId(cart.getId())
+                .stream()
+                .map(this::toDTO)
+                .toList();
+        return ShoppingCartDTO.builder()
+                .userId(cart.getUser().getId())
+                .items(items)
+                .build();
     }
 }
+

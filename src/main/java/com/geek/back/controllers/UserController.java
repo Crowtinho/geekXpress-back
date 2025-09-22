@@ -1,75 +1,68 @@
 package com.geek.back.controllers;
 
-import com.geek.back.dto.UserDTO;
-import com.geek.back.jwt.JwtUtil;
-import com.geek.back.models.User;
+import com.geek.back.dtos.LoginRequestDTO;
+import com.geek.back.dtos.UserDTO;
+import com.geek.back.dtos.UserRequestDTO;
 import com.geek.back.services.UserServiceImpl;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/users")
 public class UserController {
 
     private final UserServiceImpl userService;
-    private final JwtUtil jwtUtil;
-    private final PasswordEncoder passwordEncoder;
 
-    public UserController(UserServiceImpl userService, JwtUtil jwtUtil, PasswordEncoder passwordEncoder) {
+    public UserController(UserServiceImpl userService) {
         this.userService = userService;
-        this.jwtUtil = jwtUtil;
-        this.passwordEncoder = passwordEncoder;
     }
 
+
     @GetMapping
-    public ResponseEntity<List<User>> list() {
-        return ResponseEntity.of(Optional.ofNullable(userService.findAll()));
+    public ResponseEntity<List<UserDTO>> getAllUsers() {
+        List<UserDTO> users = userService.findAll();
+        return ResponseEntity.ok(users);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> details(@PathVariable Long id) {
-        Optional<User> op = userService.findById(id);
-        return op.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<UserDTO> getUserById(@PathVariable Long id) {
+        return userService.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<User> create(@RequestBody User user) {
-        User saved = userService.save(user);
-        return ResponseEntity.status(201).body(saved);
+    @PutMapping("/{id}")
+    public ResponseEntity<UserDTO> updateUser(@PathVariable Long id, @Valid @RequestBody UserRequestDTO request) {
+        UserDTO updated = userService.update(id, request);
+        return ResponseEntity.ok(updated);
     }
 
-    @PutMapping("/edit/{id}")
-    public ResponseEntity<User> update(@RequestBody User user, @PathVariable Long id) {
-        user.setId(id);
-        User saved = userService.save(user);
-        return ResponseEntity.ok(saved);
-    }
 
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/register")
+    public ResponseEntity<UserDTO> registerUser(@Valid @RequestBody UserRequestDTO request) {
+        UserDTO user = userService.register(request);
+        return new ResponseEntity<>(user, HttpStatus.CREATED);
+    }
 
     @PostMapping("/login")
-    public ResponseEntity<String> loginConDTO(@RequestBody UserDTO userDto) {
-        UserDetails userDetails = userService.loadUserByUsername(userDto.getUsername());
-        if (userDetails != null && passwordEncoder.matches(userDto.getPassword(), userDetails.getPassword())) {
-            String token = jwtUtil.generateToken(userDetails.getUsername());
-            return ResponseEntity.ok(token);
-        }
-        return ResponseEntity.status(401).body("Credenciales inválidas");
+    public ResponseEntity<UserDTO> loginUser(@Valid @RequestBody LoginRequestDTO request) {
+        UserDTO user = userService.login(request);
+        return ResponseEntity.ok(user);
     }
 
     @GetMapping("/resource")
-    @PreAuthorize("hasRole('ROLE_USER')")
+//    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> getProtectedResource() {
         return ResponseEntity.ok("Este es un recurso protegido!");
     }
@@ -79,7 +72,5 @@ public class UserController {
     public ResponseEntity<String> adminDashboard() {
         return ResponseEntity.ok( "Panel de administración");
     }
-
-
 
 }

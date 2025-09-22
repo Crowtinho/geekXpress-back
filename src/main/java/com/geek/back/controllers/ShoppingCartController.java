@@ -1,9 +1,10 @@
 package com.geek.back.controllers;
 
-import com.geek.back.dto.ShoppingCartDTO;
-import com.geek.back.models.ShoppingCart;
-import com.geek.back.services.ShoppingCartService;
+import com.geek.back.dtos.CartItemDTO;
+import com.geek.back.dtos.CartItemRequestDTO;
+import com.geek.back.dtos.ShoppingCartDTO;
 import com.geek.back.services.ShoppingCartServiceImpl;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,45 +14,45 @@ import java.util.List;
 @RequestMapping("/cart")
 public class ShoppingCartController {
 
-    private final ShoppingCartServiceImpl shoppingCartService;
+    private final ShoppingCartServiceImpl cartService;
 
-    public ShoppingCartController(ShoppingCartServiceImpl shoppingCartService) {
-        this.shoppingCartService = shoppingCartService;
+    public ShoppingCartController(ShoppingCartServiceImpl cartService) {
+        this.cartService = cartService;
+    }
+    @GetMapping("/{userId}/items")
+    public ResponseEntity<List<CartItemDTO>> getCartItems(@PathVariable Long userId) {
+        List<CartItemDTO> items = cartService.getCartItems(userId);
+        return ResponseEntity.ok(items);
     }
 
-    @GetMapping
-    public ResponseEntity<List<ShoppingCartDTO>> list() {
-        return ResponseEntity.ok(shoppingCartService.findAll());
+    @GetMapping("/{userId}")
+    public ResponseEntity<ShoppingCartDTO> getCart(@PathVariable Long userId) {
+        return ResponseEntity.ok(cartService.getCartByUserId(userId));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<ShoppingCartDTO> details(@PathVariable Long id) {
-        return shoppingCartService.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PostMapping("/{userId}/add")
+    public ResponseEntity<CartItemDTO> addProduct(@PathVariable Long userId,
+                                                  @Valid @RequestBody CartItemRequestDTO request) {
+        return ResponseEntity.ok(cartService.addProductToCart(userId, request));
     }
 
-    @GetMapping("/user/{usuarioId}")
-    public ResponseEntity<List<ShoppingCartDTO>> listByUsuario(@PathVariable Long usuarioId) {
-        return ResponseEntity.ok(shoppingCartService.findByUsuarioId(usuarioId));
+    @PutMapping("/{userId}/update")
+    public ResponseEntity<CartItemDTO> updateProduct(@PathVariable Long userId,
+                                                     @Valid @RequestBody CartItemRequestDTO request) {
+        return ResponseEntity.ok(cartService.updateCartItem(userId, request));
     }
 
-    @PostMapping("/create")
-    public ResponseEntity<ShoppingCartDTO> create(@RequestBody ShoppingCartDTO shoppingCart) {
-        ShoppingCartDTO saved = shoppingCartService.save(shoppingCart);
-        return ResponseEntity.status(201).body(saved);
-    }
-
-    @PutMapping("/edit/{id}")
-    public ResponseEntity<ShoppingCartDTO> update(@PathVariable Long id, @RequestBody ShoppingCartDTO shoppingCart) {
-        shoppingCart.setUserId(id);
-        ShoppingCartDTO saved = shoppingCartService.save(shoppingCart);
-        return ResponseEntity.ok(saved);
-    }
-
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        shoppingCartService.deleteById(id);
+    @DeleteMapping("/{userId}/remove/{productId}")
+    public ResponseEntity<Void> removeProduct(@PathVariable Long userId, @PathVariable Long productId) {
+        cartService.removeProductFromCart(userId, productId);
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping("/{userId}/clear")
+    public ResponseEntity<Void> clearCart(@PathVariable Long userId) {
+        cartService.clearCart(userId);
+        return ResponseEntity.noContent().build();
+    }
+
 }
+

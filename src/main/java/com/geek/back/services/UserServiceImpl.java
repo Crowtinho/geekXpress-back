@@ -1,9 +1,14 @@
 package com.geek.back.services;
 
-import com.geek.back.models.Role;
-import com.geek.back.models.User;
-import com.geek.back.repositories.RolRepository;
 import com.geek.back.repositories.UserRepository;
+import com.geek.back.dtos.LoginRequestDTO;
+import com.geek.back.dtos.UserDTO;
+import com.geek.back.dtos.UserRequestDTO;
+import com.geek.back.entities.Role;
+import com.geek.back.entities.ShoppingCart;
+import com.geek.back.entities.User;
+import com.geek.back.jwt.JwtUtil;
+import com.geek.back.repositories.RoleRepository;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -12,137 +17,181 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 @Service
-@Transactional
 public class UserServiceImpl implements UserService {
 
-    private final UserRepository userRepository;
-    private final RolRepository roleRepository;
-    private final PasswordEncoder passwordEncoder;
+    final private UserRepository userRepository;
+    final private RoleRepository roleRepository;
+    final private PasswordEncoder passwordEncoder;
+    final private JwtUtil jwtUtil;
 
-    public UserServiceImpl(UserRepository userRepository, RolRepository roleRepository, PasswordEncoder passwordEncoder) {
+    public UserServiceImpl(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<User> findAll() {
-        return userRepository.findAll();
+    public List<UserDTO> findAll() {
+        return userRepository.findAll().stream().map(this::toDTO).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<User> findById(Long id) {
-        return userRepository.findById(id);
+    public Optional<UserDTO> findById(Long id) {
+        return userRepository.findById(id).map(this::toDTO);
     }
 
     @Override
-    public User save(User user) {
-//        // Resuelve roles: si vienen con id los carga; si vienen con nombre los busca o crea.
-//        Set<Role> resolved = new HashSet<>();
-//        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
-//            for (Role r : user.getRoles()) {
-//                roleRepository.findByName(r.getName())
-//                        .ifPresent(resolved::add);
-//            }
-//        }
-//        if (resolved.isEmpty()) {
-//            Role defaultRole = roleRepository.findByName("ROLE_USER")
-//                    .orElseGet(() -> roleRepository.save(Role.builder().name("ROLE_USER").build()));
-//            resolved.add(defaultRole);
-//        }
-//
-//        user.setRoles(resolved);
-//        return userRepository.save(user);
-        // Validar campos obligatorios
-        if (user.getUsername() == null || user.getPassword() == null ||
-                user.getName() == null || user.getLastName() == null) {
-            throw new IllegalArgumentException("Todos los campos son obligatorios");
-        }
+    @Transactional
+    public UserDTO update(Long id, UserRequestDTO userDTO) {
+        return userRepository.findById(id)
+                .map(e ->{
+                    e.setUserName(userDTO.getUserName());
+                    e.setName(userDTO.getName());
+                    e.setLastName(userDTO.getLastName());
+                    e.setEmail(userDTO.getEmail());
 
-        // Verificar si el usuario ya existe
-        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-            throw new RuntimeException("El nombre de usuario ya existe");
-        }
+                    if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
+                        e.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+                    }
 
-        // Asignar roles
-        Set<Role> resolved = new HashSet<>();
-        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
-            for (Role r : user.getRoles()) {
-                roleRepository.findByName(r.getName())
-                        .ifPresent(resolved::add);
-            }
-        }
+                    return toDTO(userRepository.save(e));
 
-        // Si no tiene roles, asignar ROLE_USER por defecto
-        if (resolved.isEmpty()) {
-            Role defaultRole = roleRepository.findByName("ROLE_USER")
-                    .orElseGet(() -> roleRepository.save(Role.builder().name("ROLE_USER").build()));
-            resolved.add(defaultRole);
-        }
-
-        user.setRoles(resolved);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-
-        return userRepository.save(user);
-
+                }).orElseThrow(() -> new RuntimeException("User Not Found"));
     }
 
     @Override
-    public Optional<User> deleteById(Long id) {
-        return userRepository.findById(id).map(u -> { userRepository.deleteById(id); return u; });
+    @Transactional
+    public void deleteById(Long id) {
+        userRepository.findById(id).map(u -> {
+            userRepository.deleteById(id);
+            return u;
+        }).orElseThrow(() -> new RuntimeException("User not found: " + id));
     }
 
     @Override
-    public User createWithRoleNames(User user, Set<String> roleNames) {
-        Set<Role> roles = roleNames.stream()
-                .map(name -> roleRepository.findByName(name)
-                        .orElseGet(() -> roleRepository.save(Role.builder().name(name).build())))
-                .collect(Collectors.toSet());
-        user.setRoles(roles);
-        return userRepository.save(user);
+    public UserDTO register(UserRequestDTO request) {
+        // Validar username y email
+        if (userRepository.findByUserName(request.getUserName()).isPresent()) {
+            throw new RuntimeException("Username already exists");
+        }
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new RuntimeException("Email already exists");
+        }
+
+        // Crear entidad User
+        User user = new User();
+        user.setUserName(request.getUserName());
+        user.setName(request.getName());
+        user.setLastName(request.getLastName());
+        user.setEmail(request.getEmail());
+
+        // Encriptar password antes de guardar
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+
+        // Asignar rol por defecto ROLE_USER
+        Role defaultRole = roleRepository.findByName("ROLE_USER")
+                .orElseThrow(() -> new RuntimeException("Default role not found"));
+        user.setRole(defaultRole);
+
+        // Crear carrito asociado al usuario
+        ShoppingCart cart = new ShoppingCart();
+        cart.setUser(user);          // Vincular carrito al usuario
+        user.setShoppingCart(cart);  // Vincular usuario al carrito
+
+        // Guardar y devolver DTO
+        return toDTOWithRole(userRepository.save(user));
     }
 
-//    public User registerUser(User user) {
-//        // Validar campos obligatorios
-//        if (user.getUsername() == null || user.getPassword() == null ||
-//                user.getName() == null || user.getLastName() == null) {
-//            throw new IllegalArgumentException("Todos los campos son obligatorios");
-//        }
-//
-//        // Verificar si el usuario ya existe
-//        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-//            throw new RuntimeException("El nombre de usuario ya existe");
-//        }
-//
-//        User newUser = new User();
-//        newUser.setUsername(user.getUsername());
-//        newUser.setPassword(passwordEncoder.encode(user.getPassword()));
-//        newUser.setName(user.getName());
-//        newUser.setLastName(user.getLastName());
-//        newUser.setEmail(user.getEmail());
-//
-//        return userRepository.save(newUser);
-//    }
 
-    // Métdo de carga de usuario implementado desde UserDetailsService
+    @Override
+    public UserDTO login(LoginRequestDTO request) {
+        return userRepository.findByUserName(request.getUserName())
+                .filter(user -> passwordEncoder.matches(request.getPassword(), user.getPassword()))
+                .map(u -> {
+                    // mapea datos del usuario
+                    UserDTO dto = toDTO(u);
+                    // generar token y agregarlo al DTO
+                    String token = jwtUtil.generateToken(u.getUserName(), u.getRole().getName());
+                    dto.setToken(token); // asegúrate de tener un campo `token` en UserDTO
+                    return dto;
+                })
+                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UserDTO> findByUsername(String username) {
+        return userRepository.findByUserName(username).map(this::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UserDTO> findByEmail(String email) {
+        return userRepository.findByEmail(email).map(this::toDTO);
+    }
+
+
+    // carga de usuario implementado desde UserDetailsService
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findByUserName(username)
                 .orElseThrow(() -> new UsernameNotFoundException("usuario no encontrado"));
 
-        List<GrantedAuthority> authorities = user.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority(role.getName()))
-                .collect(Collectors.toList());
+        List<GrantedAuthority> authorities = Collections.singletonList(
+                new SimpleGrantedAuthority(user.getRole().getName())
+        );
 
         return new org.springframework.security.core.userdetails.User(
-                user.getUsername(),
+                user.getUserName(),
                 user.getPassword(),
-                authorities);
-//                new ArrayList<>());
+                authorities
+        );
     }
+
+    private UserDTO toDTO(User user) {
+        if (user == null) return null;
+
+        return UserDTO.builder()
+                .id(user.getId())
+                .userName(user.getUserName())
+                .name(user.getName())
+                .lastName(user.getLastName())
+                .email(user.getEmail())
+//                .role(user.getRole() != null ? user.getRole().getName() : null)
+                .build();
+    }
+
+    private UserDTO toDTOWithRole(User user) {
+        if (user == null) return null;
+
+        return UserDTO.builder()
+                .id(user.getId())
+                .userName(user.getUserName())
+                .name(user.getName())
+                .lastName(user.getLastName())
+                .email(user.getEmail())
+                .role(user.getRole() != null ? user.getRole().getName() : null)
+                .build();
+    }
+
+    private User toEntity(UserDTO dto) {
+        if (dto == null) return null;
+
+        User user = new User();
+        user.setId(dto.getId());
+        user.setUserName(dto.getUserName());
+        user.setName(dto.getName());
+        user.setLastName(dto.getLastName());
+        user.setEmail(dto.getEmail());
+        // el password normalmente no debería mapearse aquí directo desde el DTO
+        return user;
+    }
+
 }
