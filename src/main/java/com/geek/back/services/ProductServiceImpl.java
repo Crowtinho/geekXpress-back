@@ -1,171 +1,219 @@
 package com.geek.back.services;
 
-import com.geek.back.dto.ProductDTO;
-import com.geek.back.dto.ProductImageDTO;
-import com.geek.back.models.Category;
-import com.geek.back.models.Product;
-import com.geek.back.models.ImageProduct;
+import com.geek.back.dtos.ImageProductDTO;
+import com.geek.back.dtos.ImageProductRequestDTO;
+import com.geek.back.dtos.ProductDTO;
+import com.geek.back.dtos.ProductRequestDTO;
+import com.geek.back.entities.Category;
+import com.geek.back.entities.ImageProduct;
+import com.geek.back.entities.Product;
 import com.geek.back.repositories.CategoryRepository;
-import com.geek.back.repositories.ProductImageRepository;
 import com.geek.back.repositories.ProductRepository;
-import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-public class ProductServiceImpl implements ProductService {
+public class ProductServiceImpl implements ProductService{
 
     private final ProductRepository productRepository;
-    private final ProductImageRepository productImageRepository;
     private final CategoryRepository categoryRepository;
 
-    public ProductServiceImpl(ProductRepository productRepository,
-                              ProductImageRepository productImageRepository,
-                              CategoryRepository categoryRepository) {
+
+    public ProductServiceImpl(ProductRepository productRepository, CategoryRepository categoryRepository) {
         this.productRepository = productRepository;
-        this.productImageRepository = productImageRepository;
         this.categoryRepository = categoryRepository;
     }
 
-    // Mapea Product a ProductDTO
-    private ProductDTO toDTO(Product product) {
-        ProductDTO dto = new ProductDTO();
-        dto.setName(product.getName());
-        dto.setDescription(product.getDescription());
-        dto.setPrice(product.getPrice());
-        dto.setStock(product.getStock());
-
-        if (product.getCategories() != null) {
-            dto.setCategoryIds(product.getCategories().stream()
-                    .map(Category::getId)
-                    .collect(Collectors.toSet()));
-        }
-
-        if (product.getImages() != null) {
-            dto.setImagesToAdd(product.getImages().stream().map(img -> {
-                ProductImageDTO imgDto = new ProductImageDTO();
-                imgDto.setId(img.getId());
-                imgDto.setUrl(img.getUrl());
-                imgDto.setMainImage(img.isMainImage());
-                return imgDto;
-            }).collect(Collectors.toSet()));
-        }
-
-        return dto;
-    }
-
-    // --------------------- CRUD ---------------------
-
-    @Override
     @Transactional(readOnly = true)
+    @Override
     public List<ProductDTO> findAll() {
-        return productRepository.findAll().stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
+        return productRepository.findAll().stream().map(this::toDTO).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public Optional<ProductDTO> findById(Long id) {
-        return productRepository.findById(id)
-                .map(this::toDTO);
+        return productRepository.findById(id).map(this::toDTO);
     }
 
     @Override
     @Transactional
-    public ProductDTO save(ProductDTO dto) {
-        return saveOrUpdate(dto, null)
-                .orElseThrow(() -> new RuntimeException("Error al guardar el producto"));
+    public void deleteById(Long id) {
+        productRepository.findById(id).map(p -> {
+            productRepository.deleteById(id);
+            return p;
+        }).orElseThrow(() -> new RuntimeException("Product not found: " + id));
     }
 
+    @Override
     @Transactional
-    public Optional<ProductDTO> saveOrUpdate(ProductDTO dto, Long id) {
-        Product product = id == null
-                ? new Product()
-                : productRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Producto no encontrado: " + id));
+    public ProductDTO createProduct(ProductRequestDTO request) {
+        Product product = new Product();
+        product.setName(request.getName());
+        product.setDescription(request.getDescription());
+        product.setPrice(request.getPrice());
+        product.setStock(request.getStock());
 
-        product.setName(dto.getName());
-        product.setDescription(dto.getDescription());
-        product.setPrice(dto.getPrice());
-        product.setStock(dto.getStock());
+        // Asociar categorías por IDs
+        Set<Category> categories = request.getCategoryIds()
+                .stream()
+                .map(id -> categoryRepository.findById(id)
+                        .orElseThrow(() -> new RuntimeException("Category not found: " + id)))
+                .collect(Collectors.toSet());
+        product.setCategories(categories);
 
-        // Categorías
-        if (dto.getCategoryIds() != null) {
-            Set<Category> categories = dto.getCategoryIds().stream()
-                    .map(cid -> categoryRepository.findById(cid)
-                            .orElseThrow(() -> new EntityNotFoundException("Categoría no encontrada: " + cid)))
-                    .collect(Collectors.toSet());
-            product.setCategories(categories);
-        }
-
-        product = productRepository.save(product);
-
-        // Imágenes a agregar
-        if (dto.getImagesToAdd() != null && !dto.getImagesToAdd().isEmpty()) {
-            final Product productFinal = product;
-
-            Set<ImageProduct> newImages = dto.getImagesToAdd().stream()
-                    .map(imgDto -> {
+        // Asociar imágenes si vienen
+        if (request.getImages() != null) {
+            List<ImageProduct> images = request.getImages()
+                    .stream()
+                    .map(imgDTO -> {
                         ImageProduct img = new ImageProduct();
-                        img.setUrl(imgDto.getUrl());
-                        img.setMainImage(Boolean.TRUE.equals(imgDto.getMainImage()));
-                        img.setProduct(productFinal);
+                        img.setUrl(imgDTO.getUrl());
+                        img.setMainImage(imgDTO.isMainImage());
+                        img.setProduct(product); // vínculo con producto
                         return img;
-                    }).collect(Collectors.toSet());
-
-            productImageRepository.saveAll(newImages);
-            product.getImages().addAll(newImages);
+                    })
+                    .toList();
+            product.setImageProducts(images);
         }
 
-        // Imágenes a eliminar
-        if (dto.getImageIdsToRemove() != null && !dto.getImageIdsToRemove().isEmpty()) {
-            product.getImages().removeIf(img -> dto.getImageIdsToRemove().contains(img.getId()));
-            dto.getImageIdsToRemove().forEach(imgId ->
-                    productImageRepository.findById(imgId).ifPresent(productImageRepository::delete));
-        }
-
-        return Optional.of(toDTO(productRepository.save(product)));
+        return toDTO(productRepository.save(product));
     }
 
+//    @Override
+//    @Transactional
+//    public ProductDTO updateProduct(Long id, ProductRequestDTO request) {
+//        return productRepository.findById(id)
+//                .map(product -> {
+//                    product.setName(request.getName());
+//                    product.setDescription(request.getDescription());
+//                    product.setPrice(request.getPrice());
+//                    product.setStock(request.getStock());
+//
+//                    // Actualizar categorías
+//                    Set<Category> categories = request.getCategoryIds()
+//                            .stream()
+//                            .map(cid -> categoryRepository.findById(cid)
+//                                    .orElseThrow(() -> new RuntimeException("Category not found: " + cid)))
+//                            .collect(Collectors.toSet());
+//                    product.setCategories(categories);
+//
+//                    // Actualizar imágenes
+//                    product.getImageProducts().clear(); // eliminamos antiguas
+//                    if (request.getImages() != null) {
+//                        List<ImageProduct> images = request.getImages()
+//                                .stream()
+//                                .map(imgDTO -> {
+//                                    ImageProduct img = new ImageProduct();
+//                                    img.setUrl(imgDTO.getUrl());
+//                                    img.setMainImage(imgDTO.isMainImage());
+//                                    img.setProduct(product);
+//                                    return img;
+//                                })
+//                                .toList();
+//                        product.setImageProducts(images);
+//                    }
+//
+//                    return toDTO(productRepository.save(product));
+//                })
+//                .orElseThrow(() -> new RuntimeException("Product not found"));
+//    }
+
+    @Override
     @Transactional
-    public Optional<ProductDTO> deleteById(Long id) {
+    public ProductDTO updateProduct(Long id, ProductRequestDTO request) {
         return productRepository.findById(id)
                 .map(product -> {
-                    productRepository.delete(product);
-                    return toDTO(product);
-                });
+                    // Actualizar campos básicos
+                    product.setName(request.getName());
+                    product.setDescription(request.getDescription());
+                    product.setPrice(request.getPrice());
+                    product.setStock(request.getStock());
+
+                    // Actualizar categorías
+                    Set<Category> categories = request.getCategoryIds()
+                            .stream()
+                            .map(cid -> categoryRepository.findById(cid)
+                                    .orElseThrow(() -> new RuntimeException("Category not found: " + cid)))
+                            .collect(Collectors.toSet());
+                    product.setCategories(categories);
+
+                    // Actualizar imágenes
+                    List<ImageProductRequestDTO> requestImages = request.getImages() != null ? request.getImages() : List.of();
+
+                    // Map de URL -> ImageProduct existente
+                    Map<String, ImageProduct> existingImagesMap = product.getImageProducts()
+                            .stream()
+                            .collect(Collectors.toMap(ImageProduct::getUrl, img -> img));
+
+                    // Lista final de imágenes
+                    List<ImageProduct> updatedImages = new ArrayList<>();
+
+                    for (ImageProductRequestDTO imgDTO : requestImages) {
+                        // Evitar duplicados en la misma petición
+                        if (updatedImages.stream().anyMatch(i -> i.getUrl().equals(imgDTO.getUrl()))) {
+                            continue;
+                        }
+
+                        ImageProduct img = existingImagesMap.get(imgDTO.getUrl());
+                        if (img != null) {
+                            // Actualiza la imagen existente
+                            img.setMainImage(imgDTO.isMainImage());
+                        } else {
+                            // Crea nueva imagen
+                            img = new ImageProduct();
+                            img.setUrl(imgDTO.getUrl());
+                            img.setMainImage(imgDTO.isMainImage());
+                            img.setProduct(product); // mantener la relación
+                        }
+                        updatedImages.add(img);
+                    }
+
+                    // Limpiar la lista original y agregar las imágenes actualizadas
+                    product.getImageProducts().clear();
+                    for (ImageProduct img : updatedImages) {
+                        product.getImageProducts().add(img);
+                        img.setProduct(product); // asegurar la relación bidireccional
+                    }
+
+                    return toDTO(productRepository.save(product));
+                })
+                .orElseThrow(() -> new RuntimeException("Product not found"));
     }
 
-    // --------------------- Manejo de imágenes ---------------------
+    private ProductDTO toDTO(Product product) {
+        if (product == null) return null;
 
-    @Override
-    @Transactional
-    public Product addImageToProduct(Long productId, ImageProduct image) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new EntityNotFoundException("Producto no encontrado"));
+        ProductDTO dto = new ProductDTO();
+        dto.setId(product.getId());
+        dto.setName(product.getName());
+        dto.setDescription(product.getDescription());
+        dto.setPrice(product.getPrice());
+        dto.setStock(product.getStock());
 
-        image.setProduct(product);
-        product.getImages().add(image);
-        productImageRepository.save(image);
+        // Nombres de categorías
+        Set<String> categoryNames = product.getCategories()
+                .stream()
+                .map(Category::getName)
+                .collect(Collectors.toSet());
+        dto.setCategories(categoryNames);
 
-        return productRepository.save(product);
+        // Imágenes
+        List<ImageProductDTO> images = product.getImageProducts()
+                .stream()
+                .map(img -> {
+                    ImageProductDTO imgDTO = new ImageProductDTO();
+                    imgDTO.setUrl(img.getUrl());
+                    imgDTO.setMainImage(img.isMainImage());
+                    return imgDTO;
+                })
+                .toList();
+        dto.setImages(images);
+
+        return dto;
     }
 
-    @Override
-    @Transactional
-    public Product removeImageFromProduct(Long productId, Long imageId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new EntityNotFoundException("Producto no encontrado"));
-
-        product.getImages().removeIf(img -> img.getId().equals(imageId));
-        productImageRepository.findById(imageId).ifPresent(productImageRepository::delete);
-
-        return productRepository.save(product);
-    }
 }

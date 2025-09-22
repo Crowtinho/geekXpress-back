@@ -1,7 +1,7 @@
-package com.geek.back.jwt;
+package com.geek.back.config;
 
-//import com.JWTClase.JWTLogin.service.UserService;
-import com.geek.back.services.UserService;
+import com.geek.back.jwt.JwtRequestFilter;
+import com.geek.back.services.UserServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,7 +29,7 @@ public class SecurityConfig {
 
     @Autowired
     @Lazy
-    private com.geek.back.services.UserService userService;
+    private UserServiceImpl userService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -40,7 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/**").permitAll()
 //                        .requestMatchers("/users/login","/users/register","/categories/**","/products/**","products","/cart/**","/cart-details/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/**").hasAnyRole("USER","ADMIN")
+                        .requestMatchers("/users/**", "/users").hasAnyRole("ADMIN")
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS));

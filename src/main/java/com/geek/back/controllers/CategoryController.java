@@ -1,7 +1,7 @@
 package com.geek.back.controllers;
 
 
-import com.geek.back.models.Category;
+import com.geek.back.entities.Category;
 import com.geek.back.services.CategoryServiceImpl;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
-
 
 @RestController
 @RequestMapping("/categories")
@@ -42,28 +41,20 @@ public class CategoryController {
     @Transactional
     @PostMapping("/create")
     public ResponseEntity<Category> create(@Valid @RequestBody Category category){
-        return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.save(category));
+        return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.createCategory(category));
     }
 
     @PutMapping("edit/{id}")
     public ResponseEntity<Category> update(@Valid @RequestBody Category category, @PathVariable Long id){
-        Optional<Category> optionalCategory = categoryService.findById(id);
-        if (optionalCategory.isPresent()){
-            Category categoryDb = optionalCategory.orElseThrow();
-            categoryDb.setName(category.getName());
 
-            return ResponseEntity.ok(categoryService.save(categoryDb));
-        }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(categoryService.updateCategory(id,category));
+
     }
 
     @DeleteMapping("delete/{id}")
-    public ResponseEntity<Category> delete(@PathVariable Long id){
-        Optional<Category> categoryOptional = categoryService.deleteById(id);
-        if (categoryOptional.isPresent()){
-            return ResponseEntity.status(HttpStatus.OK).body(categoryOptional.orElseThrow());
-        }
-        return ResponseEntity.notFound().build();
+    public ResponseEntity<Void> delete(@PathVariable Long id){
+        categoryService.deleteById(id); // Se elimina la categoría
+        return ResponseEntity.noContent().build(); // HTTP 204
     }
 
 
