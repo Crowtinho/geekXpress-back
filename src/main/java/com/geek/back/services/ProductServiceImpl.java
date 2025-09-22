@@ -4,7 +4,7 @@ import com.geek.back.dto.ProductDTO;
 import com.geek.back.dto.ProductImageDTO;
 import com.geek.back.models.Category;
 import com.geek.back.models.Product;
-import com.geek.back.models.ProductImage;
+import com.geek.back.models.ImageProduct;
 import com.geek.back.repositories.CategoryRepository;
 import com.geek.back.repositories.ProductImageRepository;
 import com.geek.back.repositories.ProductRepository;
@@ -110,9 +110,9 @@ public class ProductServiceImpl implements ProductService {
         if (dto.getImagesToAdd() != null && !dto.getImagesToAdd().isEmpty()) {
             final Product productFinal = product;
 
-            Set<ProductImage> newImages = dto.getImagesToAdd().stream()
+            Set<ImageProduct> newImages = dto.getImagesToAdd().stream()
                     .map(imgDto -> {
-                        ProductImage img = new ProductImage();
+                        ImageProduct img = new ImageProduct();
                         img.setUrl(imgDto.getUrl());
                         img.setMainImage(Boolean.TRUE.equals(imgDto.getMainImage()));
                         img.setProduct(productFinal);
@@ -146,7 +146,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public Product addImageToProduct(Long productId, ProductImage image) {
+    public Product addImageToProduct(Long productId, ImageProduct image) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new EntityNotFoundException("Producto no encontrado"));
 

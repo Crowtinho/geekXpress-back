@@ -69,19 +69,19 @@ public class Product {
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference
-    private Set<ProductImage> images = new HashSet<>();
+    private Set<ImageProduct> images = new HashSet<>();
 
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<CartItem> detalles = new ArrayList<>();
 
-    public void addImage(ProductImage image){
+    public void addImage(ImageProduct image){
         images.add(image);
         image.setProduct(this);
     }
 
-    public void removeImage(ProductImage image){
+    public void removeImage(ImageProduct image){
         images.remove(image);
         image.setProduct(null);
     }

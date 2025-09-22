@@ -1,8 +1,7 @@
 package com.geek.back.services;
 
-import com.geek.back.models.ProductImage;
+import com.geek.back.models.ImageProduct;
 import com.geek.back.repositories.ProductImageRepository;
-import com.geek.back.repositories.ProductRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,25 +19,25 @@ public class ProductImageServiceImpl implements ProductImageService{
 
     @Transactional(readOnly = true)
     @Override
-    public List<ProductImage> findAll() {
+    public List<ImageProduct> findAll() {
         return imageRepository.findAll();
     }
 
     @Transactional(readOnly = true)
     @Override
-    public Optional<ProductImage> findById(Long id) {
+    public Optional<ImageProduct> findById(Long id) {
         return imageRepository.findById(id);
     }
 
     @Transactional
     @Override
-    public ProductImage save(ProductImage productImage) {
-        return imageRepository.save(productImage);
+    public ImageProduct save(ImageProduct imageProduct) {
+        return imageRepository.save(imageProduct);
     }
 
     @Transactional
     @Override
-    public Optional<ProductImage> deleteById(Long id) {
+    public Optional<ImageProduct> deleteById(Long id) {
         return imageRepository.findById(id).map(i ->{
             imageRepository.deleteById(id);
             return i;

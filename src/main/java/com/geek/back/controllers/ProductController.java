@@ -2,7 +2,7 @@ package com.geek.back.controllers;
 
 import com.geek.back.dto.ProductDTO;
 import com.geek.back.models.Product;
-import com.geek.back.models.ProductImage;
+import com.geek.back.models.ImageProduct;
 import com.geek.back.services.CategoryServiceImpl;
 import com.geek.back.services.ProductServiceImpl;
 import jakarta.validation.Valid;
@@ -11,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/products")
@@ -66,7 +65,7 @@ public class ProductController {
 
     // Agregar una imagen a un producto
     @PostMapping("/{id}/images")
-    public ResponseEntity<Product> addImage(@PathVariable Long id, @RequestBody ProductImage image) {
+    public ResponseEntity<Product> addImage(@PathVariable Long id, @RequestBody ImageProduct image) {
         Product updatedProduct = productService.addImageToProduct(id, image);
         return ResponseEntity.ok(updatedProduct);
     }

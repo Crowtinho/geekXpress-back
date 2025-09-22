@@ -1,9 +1,8 @@
 package com.geek.back.controllers;
 
-import com.geek.back.models.ProductImage;
+import com.geek.back.models.ImageProduct;
 import com.geek.back.services.ProductImageServiceImpl;
 import jakarta.validation.Valid;
-import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,13 +21,13 @@ public class ProductImageController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProductImage>> list(){
+    public ResponseEntity<List<ImageProduct>> list(){
         return ResponseEntity.of(Optional.ofNullable(imageService.findAll()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProductImage> details(@PathVariable Long id){
-        Optional<ProductImage> image = imageService.findById(id);
+    public ResponseEntity<ImageProduct> details(@PathVariable Long id){
+        Optional<ImageProduct> image = imageService.findById(id);
         if (image.isPresent()){
             return ResponseEntity.ok(image.orElseThrow());
         }
@@ -36,15 +35,15 @@ public class ProductImageController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<ProductImage> create(@Valid @RequestBody ProductImage image){
+    public ResponseEntity<ImageProduct> create(@Valid @RequestBody ImageProduct image){
        return ResponseEntity.status(HttpStatus.CREATED).body(imageService.save(image));
     }
 
     @PutMapping("/edit/{id}")
-    public ResponseEntity<ProductImage> update(@Valid @RequestBody ProductImage image, @PathVariable Long id){
-        Optional<ProductImage> imageOptional = imageService.findById(id);
+    public ResponseEntity<ImageProduct> update(@Valid @RequestBody ImageProduct image, @PathVariable Long id){
+        Optional<ImageProduct> imageOptional = imageService.findById(id);
         if (imageOptional.isPresent()){
-            ProductImage imageDb = imageOptional.orElseThrow();
+            ImageProduct imageDb = imageOptional.orElseThrow();
             imageDb.setUrl(image.getUrl());
             imageDb.setMainImage(image.isMainImage());
             imageDb.setProduct(image.getProduct());
@@ -55,8 +54,8 @@ public class ProductImageController {
     }
 
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<ProductImage> delete(@PathVariable Long id){
-        Optional<ProductImage> imageOptional = imageService.deleteById(id);
+    public ResponseEntity<ImageProduct> delete(@PathVariable Long id){
+        Optional<ImageProduct> imageOptional = imageService.deleteById(id);
         if (imageOptional.isPresent()){
             return ResponseEntity.status(HttpStatus.OK).body(imageOptional.orElseThrow());
         }

@@ -43,23 +43,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User save(User user) {
-//        // Resuelve roles: si vienen con id los carga; si vienen con nombre los busca o crea.
-//        Set<Role> resolved = new HashSet<>();
-//        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
-//            for (Role r : user.getRoles()) {
-//                roleRepository.findByName(r.getName())
-//                        .ifPresent(resolved::add);
-//            }
-//        }
-//        if (resolved.isEmpty()) {
-//            Role defaultRole = roleRepository.findByName("ROLE_USER")
-//                    .orElseGet(() -> roleRepository.save(Role.builder().name("ROLE_USER").build()));
-//            resolved.add(defaultRole);
-//        }
-//
-//        user.setRoles(resolved);
-//        return userRepository.save(user);
-        // Validar campos obligatorios
+
         if (user.getUsername() == null || user.getPassword() == null ||
                 user.getName() == null || user.getLastName() == null) {
             throw new IllegalArgumentException("Todos los campos son obligatorios");
@@ -108,27 +92,6 @@ public class UserServiceImpl implements UserService {
         return userRepository.save(user);
     }
 
-//    public User registerUser(User user) {
-//        // Validar campos obligatorios
-//        if (user.getUsername() == null || user.getPassword() == null ||
-//                user.getName() == null || user.getLastName() == null) {
-//            throw new IllegalArgumentException("Todos los campos son obligatorios");
-//        }
-//
-//        // Verificar si el usuario ya existe
-//        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-//            throw new RuntimeException("El nombre de usuario ya existe");
-//        }
-//
-//        User newUser = new User();
-//        newUser.setUsername(user.getUsername());
-//        newUser.setPassword(passwordEncoder.encode(user.getPassword()));
-//        newUser.setName(user.getName());
-//        newUser.setLastName(user.getLastName());
-//        newUser.setEmail(user.getEmail());
-//
-//        return userRepository.save(newUser);
-//    }
 
     // Métdo de carga de usuario implementado desde UserDetailsService
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
