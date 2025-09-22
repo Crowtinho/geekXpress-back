@@ -83,44 +83,6 @@ public class ProductServiceImpl implements ProductService{
         return toDTO(productRepository.save(product));
     }
 
-//    @Override
-//    @Transactional
-//    public ProductDTO updateProduct(Long id, ProductRequestDTO request) {
-//        return productRepository.findById(id)
-//                .map(product -> {
-//                    product.setName(request.getName());
-//                    product.setDescription(request.getDescription());
-//                    product.setPrice(request.getPrice());
-//                    product.setStock(request.getStock());
-//
-//                    // Actualizar categorías
-//                    Set<Category> categories = request.getCategoryIds()
-//                            .stream()
-//                            .map(cid -> categoryRepository.findById(cid)
-//                                    .orElseThrow(() -> new RuntimeException("Category not found: " + cid)))
-//                            .collect(Collectors.toSet());
-//                    product.setCategories(categories);
-//
-//                    // Actualizar imágenes
-//                    product.getImageProducts().clear(); // eliminamos antiguas
-//                    if (request.getImages() != null) {
-//                        List<ImageProduct> images = request.getImages()
-//                                .stream()
-//                                .map(imgDTO -> {
-//                                    ImageProduct img = new ImageProduct();
-//                                    img.setUrl(imgDTO.getUrl());
-//                                    img.setMainImage(imgDTO.isMainImage());
-//                                    img.setProduct(product);
-//                                    return img;
-//                                })
-//                                .toList();
-//                        product.setImageProducts(images);
-//                    }
-//
-//                    return toDTO(productRepository.save(product));
-//                })
-//                .orElseThrow(() -> new RuntimeException("Product not found"));
-//    }
 
     @Override
     @Transactional
