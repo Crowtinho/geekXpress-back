@@ -1,7 +1,17 @@
 package com.geek.back.services;
 
-import com.geek.back.models.User;
+import com.geek.back.dtos.LoginRequestDTO;
+import com.geek.back.dtos.UserDTO;
+import com.geek.back.dtos.UserRequestDTO;
 
-public interface UserService extends Service<User> {
-    User createWithRoleNames(User user, java.util.Set<String> roleNames);
+import java.util.Optional;
+
+public interface UserService extends CrudService<UserDTO>{
+
+    UserDTO register(UserRequestDTO request);
+    UserDTO login(LoginRequestDTO request);
+    Optional<UserDTO> findByUsername(String username);
+    Optional<UserDTO> findByEmail(String email);
+    UserDTO update(Long id, UserRequestDTO userRequestDTO);
+
 }
