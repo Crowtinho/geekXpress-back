@@ -39,7 +39,7 @@ public class SecurityConfig {
                         .requestMatchers("/users/login","/users/register").permitAll()
 //                        .requestMatchers("/users/login","/users/register","/categories/**","/products/**","products","/cart/**","/cart-details/**").permitAll()
                         .requestMatchers("/admin/**","/admin").hasRole("ADMIN")
-                        .requestMatchers("/cart/**", "/cart").hasAnyRole("USER","ADMIN")
+//                        .requestMatchers("/cart/**", "/cart").hasAnyRole("USER","ADMIN")
                         .requestMatchers("/**").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
