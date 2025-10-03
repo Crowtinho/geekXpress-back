@@ -164,6 +164,7 @@ public class UserServiceImpl implements UserService {
                 .name(user.getName())
                 .lastName(user.getLastName())
                 .email(user.getEmail())
+                .password(user.getPassword())
 //                .role(user.getRole() != null ? user.getRole().getName() : null)
                 .build();
     }
